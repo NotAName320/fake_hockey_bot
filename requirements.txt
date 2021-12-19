@@ -1,0 +1,3 @@
+aiohttp~=3.7.4.post0
+asyncpg~=0.25.0
+nextcord[speed]~=2.0.0a3
