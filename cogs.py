@@ -276,7 +276,7 @@ class PlayerManagement(commands.Cog, name="Player Management"):
     @commands.command()
     @commands.has_role("bot operator")
     async def approve(self, ctx, player_id: int):
-        player = await self.bot.db.fetchval("""SELECT position, playertype, firstname, lastname, approved FROM players WHERE playerid = $1""", player_id)
+        player = await self.bot.db.fetchrow("""SELECT playerposition, playertype, firstname, lastname, approved FROM players WHERE playerid = $1""", player_id)
         player_member = nextcord.utils.get(ctx.message.guild.members, id=player_id)
         if player is None:
             return await ctx.reply("Error: Player not found.")
@@ -285,9 +285,11 @@ class PlayerManagement(commands.Cog, name="Player Management"):
         if player_member is None:
             await self.bot.write("""DELETE FROM players WHERE playerid = $1""", player_id)
             return await ctx.reply("Error: Player has left the server. Application automatically deleted from database.")
-        await ctx.player_member.send("Your application has been approved by a member of the Commissioners' Office.\nYou are now free to sign with a team.")
-        await player_member.add_roles(nextcord.utils.get(ctx.message.guild.roles, name=player["position"].title()))
-        await self.bot.write("""UPDATE players SET approved = t WHERE playerid = $1""", player_id)
+        await player_member.send("Your application has been approved by a member of the Commissioners' Office.\nYou are now free to sign with a team.")
+        await player_member.add_roles(nextcord.utils.get(ctx.message.guild.roles, name=player["playerposition"].title()))
+        await self.bot.webhook_template_tweet("media", f"{player['playerposition'].lower()}_joined_{player['playertype'].lower()}", user=player_member.mention, last_name=player["lastname"])
+        await self.bot.write("""UPDATE players SET approved = 't' WHERE playerid = $1""", player_id)
+        return await ctx.reply("Player successfully approved.")
 
 
 class Eval(commands.Cog):
