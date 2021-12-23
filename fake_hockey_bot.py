@@ -84,16 +84,11 @@ async def login():
         error: Exception = getattr(error, "original", error)
 
         if isinstance(error, commands.CommandNotFound):
-            notFoundMessage = f"Your command was not recognized. Please refer to {client.command_prefix}help for more info."
-            await ctx.send(notFoundMessage)
-
-        elif isinstance(error, commands.MissingRequiredArgument):
-            missingMessage = "Error: you did not provide the required argument(s). Make sure you typed the command correctly."
-            await ctx.send(missingMessage)
-
-        elif isinstance(error, commands.CheckFailure):
-            checkFailedMessage = "Error: you do not have permissions to use this command."
-            await ctx.send(checkFailedMessage)
+            return await ctx.send(f"Error: your command was not recognized. Please refer to {client.command_prefix}help for more info.")
+        if isinstance(error, commands.MissingRequiredArgument):
+            return await ctx.send("Error: you did not provide the required argument(s). Make sure you typed the command correctly.")
+        if isinstance(error, commands.CheckFailure):
+            return await ctx.send("Error: you do not have permission to use this command.")
 
         else:
             formatted_error = "".join(traceback.format_exception(type(error), error, tb=error.__traceback__))
