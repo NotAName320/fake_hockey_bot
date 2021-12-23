@@ -56,7 +56,7 @@ async def login():
     db = await asyncpg.connect(**credentials["postgresql_creds"])
 
     # Initializes bot object
-    client = await create_bot(command_prefix='!', activity=activity, help_command=commands.MinimalHelpCommand(), intents=intents, db=db)
+    client = await create_bot(command_prefix="!", activity=activity, help_command=commands.MinimalHelpCommand(), intents=intents, db=db)
 
     @client.event
     async def on_ready():
