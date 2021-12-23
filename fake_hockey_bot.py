@@ -119,7 +119,7 @@ async def login():
 
     # Adds cogs and runs bot
     client.load_extension("cogs")
-    # client.load_extension('listener')
+    client.load_extension('listener')
     try:
         await client.start(token)
     except KeyboardInterrupt:

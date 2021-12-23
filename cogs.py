@@ -23,10 +23,12 @@ SOFTWARE.
 
 from asyncio import TimeoutError
 import inspect
+from typing import Optional
 
-from discord_db_client import Bot
 import nextcord
 from nextcord.ext import commands
+
+from discord_db_client import Bot
 
 
 QUESTION_MARK = "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Question_mark2.svg/1580px-Question_mark2.svg.png"
@@ -155,7 +157,7 @@ class PlayerManagement(commands.Cog, name="Player Management"):
     async def register(self, ctx):
         player_already_registered = await self.bot.db.fetchval("""SELECT EXISTS(SELECT 1 FROM players WHERE playerid = $1)""", ctx.author.id)
         if player_already_registered:
-            return await ctx.reply(f"Error: You have already registered. Please change your info with the {self.bot.command_prefix}editplayer command.")
+            return await ctx.reply(f"Error: You have already registered. Please ask a commissioner for help with changing your player.")
         if ctx.author.id in self.active_registrations:
             return await ctx.reply("Error: You have an active registration process still going on. Reply to your registration message with \"ABORT\" and run this command again to start over.")
         embed = nextcord.Embed(color=0, title="New Player Registration")
@@ -276,7 +278,7 @@ class PlayerManagement(commands.Cog, name="Player Management"):
     @commands.command()
     @commands.has_role("bot operator")
     async def approve(self, ctx, player_id: int):
-        player = await self.bot.db.fetchrow("""SELECT playerposition, playertype, firstname, lastname, approved FROM players WHERE playerid = $1""", player_id)
+        player = await self.bot.db.fetchrow("""SELECT playerposition, playertype, lastname, approved FROM players WHERE playerid = $1""", player_id)
         player_member = nextcord.utils.get(ctx.message.guild.members, id=player_id)
         if player is None:
             return await ctx.reply("Error: Player not found.")
@@ -290,6 +292,25 @@ class PlayerManagement(commands.Cog, name="Player Management"):
         await self.bot.webhook_template_tweet("media", f"{player['playerposition'].lower()}_joined_{player['playertype'].lower()}", user=player_member.mention, last_name=player["lastname"])
         await self.bot.write("""UPDATE players SET approved = 't' WHERE playerid = $1""", player_id)
         return await ctx.reply("Player successfully approved.")
+    
+    @commands.command()
+    @commands.has_role("bot operator")
+    async def reject(self, ctx, player_id: int, * , reason: Optional[str] = None):
+        player_approved = await self.bot.db.fetchval("""SELECT approved FROM players WHERE playerid = $1""", player_id)
+        player_member = nextcord.utils.get(ctx.message.guild.members, id=player_id)
+        if player_approved is None:
+            return await ctx.reply("Error: Player not found.")
+        if player_approved:
+            return await ctx.reply(f"Error: Player already approved. Please use command {self.bot.command_prefix}deleteplayer to delete the player.")
+        await self.bot.write("""DELETE FROM players WHERE playerid = $1""", player_id)
+        if player_member is None:
+            return await ctx.reply("Error: Player has left the server. Application automatically deleted from database.")
+        if reason:
+            await player_member.send(f"Your application has been rejected by a member of the Commissioners' Office.\nThe reason provided was: {reason}\nPlease reregister.")
+        else:
+            await player_member.send("Your application has been rejected by a member of the Commissioners' Office.\nNo reason was provided.\nPlease reregister.")
+        return await ctx.reply("Player rejected.")
+
 
 
 class Eval(commands.Cog):
@@ -303,14 +324,10 @@ class Eval(commands.Cog):
         """Evaluate a string."""
         result = eval(arg)
         if inspect.isawaitable(result):
-            embed = nextcord.Embed(title="Eval", description=f"```py\n{await result}\n```", color=nextcord.Color(0x000000))
-        else:
-            embed = nextcord.Embed(title="Eval", description=f"```py\n{result}\n```", color=nextcord.Color(0x000000))
+            result = await result
+        embed = nextcord.Embed(color=0, title="Eval", description=f"```py\n{result}\n```")
         await ctx.reply(embed=embed)
 
-    @commands.command()
-    async def test(self, ctx):
-        await self.bot.webhook_template_tweet("media", "test")
 
 
 def setup(bot: Bot):
