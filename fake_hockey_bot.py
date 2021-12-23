@@ -67,16 +67,15 @@ async def login():
     @client.event
     async def on_error(event, *args):
         """Prints out on_message listener errors to a logging channel."""
-        print(f"Ignoring exception in {event}:", file=sys.stderr)
         exception = traceback.format_exc()
+        print(f"Ignoring exception in {event}:", file=sys.stderr)
         print(exception, file=sys.stderr)
+        logging.error(exception)
         if event == "on_message":
-            message: nextcord.Message = args[0]
+            message = args[0]
             log_channel = nextcord.utils.get(message.guild.channels, name="logs")
-            errordesc = f"```py\n" \
-                        f"{exception}\n" \
-                        f"```"
-            embed = nextcord.Embed(title="Error", description=errordesc, color=nextcord.Color(0x000000))
+            errordesc = f"```py\n{exception}\n```"
+            embed = nextcord.Embed(color=0xff0000, title="Error", description=errordesc)
             await log_channel.send(content=f"Game error in channel {message.channel.mention}", embed=embed)
 
     @client.event
@@ -97,25 +96,22 @@ async def login():
             await ctx.send(checkFailedMessage)
 
         else:
-            logger.error(traceback.format_exception(type(error), error, tb=error.__traceback__))
+            formatted_error = "".join(traceback.format_exception(type(error), error, tb=error.__traceback__))
+            logger.error(formatted_error)
             print(f"Exception in command {ctx.command}:", file=sys.stderr)
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-            errordesc = f"```py\n" \
-                        f"{''.join(traceback.format_exception(type(error), error, tb=error.__traceback__))}\n" \
-                        f"```"
-            embed = nextcord.Embed(title="Error", description=errordesc, color=nextcord.Color(0x000000))
+            embed = nextcord.Embed(color=0xff0000, title="Error", description=f"```py\n{formatted_error}\n```")
             embed.set_footer(text="Please contact NotAName#0591 for help.")
             await ctx.send(embed=embed)
 
     @client.command()
     @commands.is_owner()
     async def reload(ctx):
-        pass
-        # status_message = await ctx.reply("Reloading bot...\n`cogs.py:` ❌\n`listener.py`: ❌")
-        # client.reload_extension('cogs')
-        # await status_message.edit(content="Reloading bot...\n`cogs.py:` ✅\n`listener.py`: ❌")
-        # client.reload_extension('listener')
-        # await status_message.edit(content="Bot reloaded!\n`cogs.py:` ✅\n`listener.py`: ✅")
+        status_message = await ctx.reply("Reloading bot...\n`cogs.py:` ❌\n`listener.py`: ❌")
+        client.reload_extension('cogs')
+        await status_message.edit(content="Reloading bot...\n`cogs.py:` ✅\n`listener.py`: ❌")
+        client.reload_extension('listener')
+        await status_message.edit(content="Bot reloaded!\n`cogs.py:` ✅\n`listener.py`: ✅")
 
     # Adds cogs and runs bot
     client.load_extension("cogs")
