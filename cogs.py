@@ -312,6 +312,19 @@ class PlayerManagement(commands.Cog, name="Player Management"):
             await player_member.send("Your application has been rejected by a member of the Commissioners' Office.\nNo reason was provided.\nPlease reregister.")
         return await ctx.reply("Player rejected.")
 
+    
+    @commands.group(name="editplayer")
+    @commands.has_role("bot operator")
+    async def edit_player(self, ctx):
+        if ctx.invoked_subcommand is None:
+            return await ctx.reply("Please specify what attribute of the player you want to change!\n"
+                                   "Valid attributes are:\n"
+                                   "firstname: String\n"
+                                   "lastname: String\n"
+                                   "position: Forward, Defenseman, or Goalie\n"
+                                   "archetype: Passer, Shooter, or Deker (Automatically set to NULL if position set to Goalie)\n\n"
+                                   f"To add or remove the player from a team, use the `{self.bot.command_prefix}roster` command instead.")
+
 
 
 class Eval(commands.Cog):
