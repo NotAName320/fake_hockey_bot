@@ -138,7 +138,7 @@ class TeamManagement(commands.Cog, name="Team Management"):
         return await ctx.reply(f"Success: Changed the specified team's logo.")
 
     @edit_team.command(aliases=['colour'])
-    async def color(self, ctx, team_id: str, *, new_color: str):
+    async def color(self, ctx, team_id: str, new_color: str):
         team_id = team_id.upper()
         role_id = await self.bot.db.fetchval("""SELECT roleid FROM teams WHERE teamid = $1""", team_id)
         if role_id is None:
