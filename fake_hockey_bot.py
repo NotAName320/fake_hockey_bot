@@ -9,6 +9,7 @@ in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
+
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 
@@ -103,14 +104,14 @@ async def login():
     @commands.is_owner()
     async def reload(ctx):
         status_message = await ctx.reply("Reloading bot...\n`cogs.py:` ❌\n`listener.py`: ❌")
-        client.reload_extension('cogs')
+        client.reload_extension("cogs")
         await status_message.edit(content="Reloading bot...\n`cogs.py:` ✅\n`listener.py`: ❌")
-        client.reload_extension('listener')
+        client.reload_extension("listener")
         await status_message.edit(content="Bot reloaded!\n`cogs.py:` ✅\n`listener.py`: ✅")
 
     # Adds cogs and runs bot
     client.load_extension("cogs")
-    client.load_extension('listener')
+    client.load_extension("listener")
     try:
         await client.start(token)
     except KeyboardInterrupt:
