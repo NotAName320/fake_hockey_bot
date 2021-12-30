@@ -25,8 +25,7 @@ SOFTWARE.
 from typing import Optional
 
 def fancy_archetype_name(position: str, archetype: str) -> Optional[str]:
-    position = position.upper()
-    archetype = archetype.upper()
+    position , archetype = position.upper(), archetype.upper()
     if position == "FORWARD":
         return {"PASSER": "Playmaker", "SHOOTER": "Sniper", "DEKER": "Dangler"}[archetype]
     if position == "DEFENSEMAN":

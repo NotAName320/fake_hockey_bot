@@ -24,7 +24,7 @@ SOFTWARE.
 
 from asyncio import TimeoutError
 import inspect
-from typing import Optional
+from typing import Optional, Union
 
 import nextcord
 from nextcord.ext import commands
@@ -197,7 +197,34 @@ class TeamManagement(commands.Cog, name="Team Management"):
         await player.add_roles(role)
         self.bot.logger.info(f"{ctx.author} added {player} to team {team_id}")
         await self.bot.write("""UPDATE players SET playerteam = $1 WHERE playerid = $2""", team_id, player.id)
-        return await ctx.reply(f"Success. {player_record['fullname']} has been rostered for {team_id}.")
+        return await ctx.reply(f"Success: {player_record['fullname']} has been rostered for {team_id}.")
+    
+    @roster.command(aliases=["cut"])
+    async def remove(self, ctx, team_id_or_player: Union[nextcord.Member, str], position: Optional[str] = None):
+        if isinstance(team_id_or_player, str):
+            if position is None:
+                raise commands.MissingRequiredArgument(inspect.Parameter("position", inspect.Parameter.POSITIONAL_OR_KEYWORD))
+            team_id_or_player = team_id_or_player.upper()
+            position = position.upper()
+            if not await self.bot.statements.team_exists(team_id_or_player):
+                return await ctx.reply("""Error: Team does not exist.""")
+            player_id = await self.bot.db.fetchval("""SELECT playerid FROM players WHERE playerteam = $1 AND playerposition = $2""", team_id_or_player, position)
+            player_name = await self.bot.db.fetchval("""SELECT CONCAT(firstname, ' ', lastname) AS fullname FROM players WHERE playerid = $1""", player_id)
+            role_id = await self.bot.db.fetchval("""SELECT roleid FROM teams WHERE teamid = $1""", team_id_or_player)  # TODO: Convert all this to one joined expression
+            team_id_or_player = nextcord.utils.get(ctx.guild.members, id=player_id)
+        else:
+            player_id = team_id_or_player.id
+            player_name = await self.bot.db.fetchval("""SELECT CONCAT(firstname, ' ', lastname) AS fullname FROM players WHERE playerid = $1""", player_id)
+            role_id = await self.bot.db.fetchval("""SELECT roleid
+                                                    FROM teams
+                                                    WHERE teamid = (
+                                                        SELECT playerteam FROM players WHERE playerid = $1
+                                                    )""", team_id_or_player.id)
+        await self.bot.write("""UPDATE players SET playerteam = $1 WHERE playerid = $2""", None, player_id)
+        team_role = nextcord.utils.get(ctx.guild.roles, id=role_id)
+        if team_id_or_player:
+            await team_id_or_player.remove_roles(team_role)
+        return await ctx.reply(f"Success: {player_name} has been removed from {team_role.name}.")
     
     @roster.error
     async def roster_error(self, ctx, error):
