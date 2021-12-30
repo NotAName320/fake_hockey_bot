@@ -67,17 +67,22 @@ async def login():
     logger.info("Discord token found (but not verified)!")
 
     # Initializes some configuration objects
-    activity = nextcord.Activity(type=nextcord.ActivityType.watching, name="your hockey games!")
+    activity = nextcord.Activity(type=nextcord.ActivityType[configuration["status"]["type"]], name=configuration["status"]["name"])
     intents = nextcord.Intents.default()
     intents.members = True
     logger.info("Connecting to database...")
-    db = await asyncpg.connect(**configuration["postgresql_creds"], server_settings={"application_name": "Fake Hockey Bot"})
+    db = await asyncpg.connect(**configuration["postgresql_creds"], server_settings={"application_name": configuration["app_name"]})
     logger.info(f"Connection successful as user {configuration['postgresql_creds']['user']} "
                 f"to database {configuration['postgresql_creds']['database']} "
                 f"at server {configuration['postgresql_creds']['host']}:{configuration['postgresql_creds']['port']}")
 
     # Initializes client object
-    client = await create_bot(command_prefix="!", activity=activity, help_command=commands.MinimalHelpCommand(), intents=intents, db=db, logger=logger)
+    client = await create_bot(command_prefix=configuration["command_prefix"],
+                              activity=activity,
+                              help_command=commands.MinimalHelpCommand(),
+                              intents=intents,
+                              db=db,
+                              logger=logger)
 
     @client.event
     async def on_ready():
@@ -108,7 +113,7 @@ async def login():
 
     @client.event
     async def on_command_error(ctx, error):
-        """Basic error handling, including generic messages to send for common errors"""
+        """Basic error handling, including generic messages to send for common errors."""
         error: Exception = getattr(error, "original", error)
         if ctx.command.has_error_handler():  # See TeamManagement.roster_error in cogs.py
             return
