@@ -58,12 +58,12 @@ async def login():
 
     logger.info("Starting bot...")
 
-    # Opens credentials.json and extracts bot token
-    logger.info("Opening credentials.json...")
-    with open("credentials.json", "r") as credentials_file:
-        credentials = json.load(credentials_file)
-    logger.info("credentials.json found!")
-    token = credentials["discord_token"]
+    # Opens configuration.json and extracts bot token
+    logger.info("Opening configuration.json...")
+    with open("configuration.json", "r") as configuration_file:
+        configuration = json.load(configuration_file)
+    logger.info("configuration.json found!")
+    token = configuration["discord_token"]
     logger.info("Discord token found (but not verified)!")
 
     # Initializes some configuration objects
@@ -71,10 +71,10 @@ async def login():
     intents = nextcord.Intents.default()
     intents.members = True
     logger.info("Connecting to database...")
-    db = await asyncpg.connect(**credentials["postgresql_creds"], server_settings={"application_name": "Fake Hockey Bot"})
-    logger.info(f"Connection successful as user {credentials['postgresql_creds']['user']} "
-                f"to database {credentials['postgresql_creds']['database']} "
-                f"at server {credentials['postgresql_creds']['host']}:{credentials['postgresql_creds']['port']}")
+    db = await asyncpg.connect(**configuration["postgresql_creds"], server_settings={"application_name": "Fake Hockey Bot"})
+    logger.info(f"Connection successful as user {configuration['postgresql_creds']['user']} "
+                f"to database {configuration['postgresql_creds']['database']} "
+                f"at server {configuration['postgresql_creds']['host']}:{configuration['postgresql_creds']['port']}")
 
     # Initializes client object
     client = await create_bot(command_prefix="!", activity=activity, help_command=commands.MinimalHelpCommand(), intents=intents, db=db, logger=logger)

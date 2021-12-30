@@ -1,4 +1,4 @@
-credentials.json
+configuration.json
 bot.log
 venv/
 __pycache__/
