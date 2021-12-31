@@ -34,7 +34,7 @@ class Listener(commands.Cog):
     def cog_unload(self):
         pass # Tasks will be unloaded here when necessary. I have no clue why this isn't automatically done by nextcord
     
-    @commands.Cog.listener(name='on_message')
+    @commands.Cog.listener(name="on_message")
     async def process_game(self, message):
         # Do not listen to messages that are sent by the bot itself or commands
         if message.content.startswith(self.bot.command_prefix) or message.author.id == self.bot.user.id:
@@ -49,4 +49,4 @@ def setup(bot: Bot):
 
 
 def teardown(bot: Bot):
-    bot.remove_cog('Listener')
+    bot.remove_cog("Listener")
