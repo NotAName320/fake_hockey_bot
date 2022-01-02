@@ -46,6 +46,7 @@ async def login():
     handler.setFormatter(logging.Formatter("%(asctime)s:%(levelname)s:%(name)s: %(message)s"))
     logger.addHandler(handler)
     nextcord_logger.addHandler(handler)
+
     def excepthook(e_type, e_value, e_traceback):
         if issubclass(e_type, KeyboardInterrupt):
             logger.info("KeyboardInterrupt detected, stopping!")
@@ -107,7 +108,8 @@ async def login():
     @client.event
     async def on_command(ctx):
         logger.debug(f"{ctx.author} called command {ctx.command.name} with args {ctx.args} in channel {ctx.message.channel.id}")
-    
+
+    @client.event
     async def on_command_completion(ctx):
         logger.debug(f"Command {ctx.command.name} called by {ctx.author} completed without uncaught errors")
 

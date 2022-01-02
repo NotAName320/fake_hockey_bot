@@ -26,13 +26,14 @@ from nextcord.ext import commands
 
 from discord_db_client import Bot
 
+
 class Listener(commands.Cog):
     """Handles game-related functions, and manages game-related tasks and caches."""
     def __init__(self, bot: Bot):
         self.bot = bot
 
     def cog_unload(self):
-        pass # Tasks will be unloaded here when necessary. I have no clue why this isn't automatically done by nextcord
+        pass  # Tasks will be unloaded here when necessary. I have no clue why this isn't automatically done by nextcord
     
     @commands.Cog.listener(name="on_message")
     async def process_game(self, message):

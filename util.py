@@ -24,6 +24,7 @@ SOFTWARE.
 
 from typing import Optional
 
+
 def fancy_archetype_name(position: str, archetype: str) -> Optional[str]:
     """
     If given a non-goalie position and a string 'passer', 'shooter', or 'deker' (case insensitive), returns a string corresponding

@@ -234,7 +234,7 @@ class TeamManagement(commands.Cog, name="Team Management"):
         # This is since on_command_error fires no matter what after a local on_error so we can make that one just return out and run this one instead
         del ctx.command.on_error
         await self.bot.on_command_error(ctx, error)
-        ctx.command.on_error = roster_error
+        ctx.command.on_error = self.roster_error
 
 
 class PlayerManagement(commands.Cog, name="Player Management"):
@@ -433,7 +433,7 @@ class PlayerManagement(commands.Cog, name="Player Management"):
     
     @commands.command()
     @commands.has_role("bot operator")
-    async def reject(self, ctx, player_id: int, * , reason: Optional[str] = None):
+    async def reject(self, ctx, player_id: int, *, reason: Optional[str] = None):
         player_approved = await self.bot.db.fetchval("""SELECT approved FROM players WHERE playerid = $1""", player_id)
         player_member = nextcord.utils.get(ctx.message.guild.members, id=player_id)
         if player_approved is None:
@@ -449,7 +449,6 @@ class PlayerManagement(commands.Cog, name="Player Management"):
         else:
             await player_member.send("Your application has been rejected by a member of the Commissioners' Office.\nNo reason was provided.\nPlease reregister.")
         return await ctx.reply("Player rejected.")
-
     
     @commands.group(name="editplayer")
     @commands.has_role("bot operator")
