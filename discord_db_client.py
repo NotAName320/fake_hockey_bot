@@ -68,5 +68,5 @@ async def create_bot(**kwargs) -> Bot:
     bot = Bot(**kwargs)
     await bot.db.set_type_codec("json", encoder=json.dumps, decoder=json.loads, schema="pg_catalog")
     team_exists = await bot.db.prepare("""SELECT EXISTS(SELECT 1 FROM teams WHERE teamid = UPPER($1))""")
-    bot.statements.team_exists = team_exists.fetchval
+    setattr(bot.statements, "team_exists", team_exists.fetchval)
     return bot
