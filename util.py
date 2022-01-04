@@ -30,7 +30,7 @@ def fancy_archetype_name(position: str, archetype: str) -> Optional[str]:
     If given a non-goalie position and a string 'passer', 'shooter', or 'deker' (case insensitive), returns a string corresponding
     to proper name per rulebook. Returns None otherwise.
     """
-    position , archetype = position.upper(), archetype.upper()
+    position, archetype = position.upper(), archetype.upper()
     if position == "FORWARD":
         return {"PASSER": "Playmaker", "SHOOTER": "Sniper", "DEKER": "Dangler"}[archetype]
     if position == "DEFENSEMAN":

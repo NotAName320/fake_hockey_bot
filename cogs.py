@@ -198,7 +198,7 @@ class TeamManagement(commands.Cog, name="Team Management"):
         self.bot.logger.info(f"{ctx.author} added {player} to team {team_id}")
         await self.bot.write("""UPDATE players SET playerteam = $1 WHERE playerid = $2""", team_id, player.id)
         return await ctx.reply(f"Success: {player_record['fullname']} has been rostered for {team_id}.")
-    
+
     @roster.command(aliases=["cut"])
     async def remove(self, ctx, team_id_or_player: Union[nextcord.Member, str], position: Optional[str] = None):
         if isinstance(team_id_or_player, str):
@@ -225,7 +225,7 @@ class TeamManagement(commands.Cog, name="Team Management"):
         if team_id_or_player:
             await team_id_or_player.remove_roles(team_role)
         return await ctx.reply(f"Success: {player_name} has been removed from {team_role.name}.")
-    
+
     @roster.error
     async def roster_error(self, ctx, error):
         if isinstance(error, commands.CheckFailure):
@@ -430,7 +430,7 @@ class PlayerManagement(commands.Cog, name="Player Management"):
                                               last_name=player["lastname"])
         await self.bot.write("""UPDATE players SET approved = 't' WHERE playerid = $1""", player_id)
         return await ctx.reply("Player successfully approved.")
-    
+
     @commands.command()
     @commands.has_role("bot operator")
     async def reject(self, ctx, player_id: int, *, reason: Optional[str] = None):
@@ -449,7 +449,7 @@ class PlayerManagement(commands.Cog, name="Player Management"):
         else:
             await player_member.send("Your application has been rejected by a member of the Commissioners' Office.\nNo reason was provided.\nPlease reregister.")
         return await ctx.reply("Player rejected.")
-    
+
     @commands.group(name="editplayer")
     @commands.has_role("bot operator")
     async def edit_player(self, ctx):
@@ -489,7 +489,7 @@ class PlayerManagement(commands.Cog, name="Player Management"):
         position = position.upper()
         if position not in ["FORWARD", "DEFENSEMAN", "GOALIE"]:
             return await ctx.reply("Error: You did not enter a valid position. Please try again.")
-        player_record = await self.bot.db.fetchrow("""SELECT CONCAT(firstname, ' ', lastname) AS fullname, playerteam, playerposition, playertype 
+        player_record = await self.bot.db.fetchrow("""SELECT CONCAT(firstname, ' ', lastname) AS fullname, playerteam, playerposition, playertype
                                                       FROM players WHERE playerid = $1""",
                                                    player.id)
         if player_record is None:
@@ -523,7 +523,7 @@ class PlayerManagement(commands.Cog, name="Player Management"):
             archetype = "DEKER"
         if archetype not in ["PASSER", "SHOOTER", "DEKER"]:
             return await ctx.reply("Error: Valid archetype not found. Valid archetypes are: passer, shooter, deker")
-        player_record = await self.bot.db.fetchrow("""SELECT CONCAT(firstname, ' ', lastname) AS fullname, playerposition, playertype 
+        player_record = await self.bot.db.fetchrow("""SELECT CONCAT(firstname, ' ', lastname) AS fullname, playerposition, playertype
                                                       FROM players WHERE playerid = $1""",
                                                    player.id)
         if player_record is None:
@@ -548,13 +548,13 @@ class MetaAdmin(commands.Cog):
             result = await result
         embed = nextcord.Embed(color=0, title="Eval", description=f"```py\n{result}\n```")
         await ctx.reply(embed=embed)
-    
+
     @commands.command(hidden=True)
     @commands.is_owner()
     async def logs(self, ctx):
         """Uploads the bot.log file."""
         return await ctx.reply(file=nextcord.File("bot.log"))
-    
+
     @commands.command(hidden=True)
     @commands.is_owner()
     async def test(self, ctx, arg: str):

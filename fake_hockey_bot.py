@@ -54,7 +54,7 @@ async def login():
             return
         logger.critical("".join(traceback.format_exception(e_type, e_value, tb=e_traceback)))
         sys.__excepthook__(e_type, e_value, e_traceback)
-    
+
     sys.excepthook = excepthook
 
     logger.info("Starting bot...")
@@ -104,7 +104,7 @@ async def login():
             errordesc = f"```py\n{exception}\n```"
             embed = nextcord.Embed(color=0xff0000, title="Error", description=errordesc)
             await log_channel.send(content=f"Game error in channel {message.channel.mention}", embed=embed)
-    
+
     @client.event
     async def on_command(ctx):
         logger.debug(f"{ctx.author} called command {ctx.command.name} with args {ctx.args} in channel {ctx.message.channel.id}")
