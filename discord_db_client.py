@@ -35,10 +35,16 @@ from nextcord.ext import commands
 class Bot(commands.Bot):
     """Represents both a connection to the PostgreSQL Client and Discord. Do not create this object directly; use create_bot() instead."""
     def __init__(self, **kwargs):
-        self.statements = lambda: None  # Best way to create an object that accepts attributes
+        # Set some flags
+        allowed_mentions = nextcord.AllowedMentions.all()
+        allowed_mentions.replied_user = False
+        intents = nextcord.Intents.default()
+        intents.members = True
+
         self.db: Connection = kwargs.pop("db")
         self.logger = kwargs.pop("logger")
-        super().__init__(**kwargs)
+        self.statements = lambda: None  # Best way to create an object that accepts attributes
+        super().__init__(**kwargs, allowed_mentions=allowed_mentions, intents=intents)
 
     async def write(self, query: str, *args):
         """Write something to the database."""

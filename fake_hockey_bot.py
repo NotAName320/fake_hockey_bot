@@ -69,8 +69,6 @@ async def login():
 
     # Initializes some configuration objects
     activity = nextcord.Activity(type=nextcord.ActivityType[configuration["status"]["type"]], name=configuration["status"]["name"])
-    intents = nextcord.Intents.default()
-    intents.members = True
     logger.info("Connecting to database...")
     db = await asyncpg.connect(**configuration["postgresql_creds"], server_settings={"application_name": configuration["app_name"]})
     logger.info(f"Connection successful as user {configuration['postgresql_creds']['user']} "
@@ -81,7 +79,6 @@ async def login():
     client = await create_bot(command_prefix=configuration["command_prefix"],
                               activity=activity,
                               help_command=commands.MinimalHelpCommand(),
-                              intents=intents,
                               db=db,
                               logger=logger)
 
