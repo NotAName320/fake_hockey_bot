@@ -534,6 +534,12 @@ class PlayerManagement(commands.Cog, name="Player Management"):
         return await ctx.reply(f"Success: {player_record['fullname']}'s archetype changed to {fancy_archetype_name(player_record['playerposition'], archetype)}")
 
 
+class GameManagement(commands.Cog):
+    """Start, stop, and edit games."""
+    def __init__(self, bot: Bot):
+        self.bot = bot
+
+
 class MetaAdmin(commands.Cog):
     """Commands related to the functioning of the bot."""
     def __init__(self, bot: Bot):
@@ -565,4 +571,5 @@ class MetaAdmin(commands.Cog):
 def setup(bot: Bot):
     bot.add_cog(TeamManagement(bot))
     bot.add_cog(PlayerManagement(bot))
+    bot.add_cog(GameManagement(bot))
     bot.add_cog(MetaAdmin(bot))
