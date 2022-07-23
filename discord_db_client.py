@@ -1,25 +1,19 @@
 """
 Creates an async PostgreSQL connection that can be accessed with a discord.py commands client
+Copyright (C) 2022 NotAName
 
-Copyright (c) 2021 NotAName
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import datetime
@@ -40,6 +34,7 @@ class Bot(commands.Bot):
         allowed_mentions.replied_user = False
         intents = nextcord.Intents.default()
         intents.members = True
+        intents.message_content = True
 
         self.db: Connection = kwargs.pop("db")
         self.logger = kwargs.pop("logger")
@@ -75,4 +70,13 @@ async def create_bot(**kwargs) -> Bot:
     await bot.db.set_type_codec("json", encoder=json.dumps, decoder=json.loads, schema="pg_catalog")
     team_exists = await bot.db.prepare("""SELECT EXISTS(SELECT 1 FROM teams WHERE teamid = UPPER($1))""")
     setattr(bot.statements, "team_exists", team_exists.fetchval)
+    get_role_id = await bot.db.prepare("""SELECT roleid FROM teams WHERE teamid = UPPER($1)""")
+
+    async def role_from_id(guild_id: int, team_id: str):
+        return nextcord.utils.get(bot.get_guild(guild_id).roles, id=await get_role_id.fetchval(team_id))
+
+    def emoji_from_id(guild_id: int, team_id: str):
+        return nextcord.utils.get(bot.get_guild(guild_id).emojis, name=team_id) or nextcord.utils.get(bot.get_guild(guild_id).emojis, name="UNKNOWN")
+    bot.role_from_id = role_from_id
+    bot.emoji_from_id = emoji_from_id
     return bot

@@ -1,29 +1,25 @@
 """
 Cogs for Fake Hockey Bot
+Copyright (C) 2022 NotAName
 
-Copyright (c) 2021 NotAName
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from asyncio import TimeoutError
 import inspect
+from datetime import datetime
+from time import mktime
 from typing import Optional, Union
 
 import nextcord
@@ -47,7 +43,7 @@ class TeamManagement(commands.Cog, name="Team Management"):
         if team_id is None:  # If user does not specify a team, try to fetch their current team (if they have one) rather than immediately throwing error
             author_associated_team = await self.bot.db.fetchval("""SELECT playerteam FROM players WHERE playerid = $1""", ctx.author.id)
             if author_associated_team is None:
-                return await ctx.reply("Error: Please specify a team")
+                return await ctx.reply("Error: Please specify a team.")
             team_id = author_associated_team
         team_id = team_id.upper()
         team_record = await self.bot.db.fetchrow("""SELECT roleid, logourl, city, name, channelid FROM teams WHERE teamid = $1""", team_id)
@@ -68,7 +64,7 @@ class TeamManagement(commands.Cog, name="Team Management"):
                 goalie = self.bot.get_user(player["playerid"]).mention if self.bot.get_user(player["playerid"]) else "Unknown player with ID " + player["playerid"]
         color = nextcord.utils.get(ctx.guild.roles, id=team_record["roleid"]).color
         embed = nextcord.Embed(color=color, title=f"{team_record['city']} {team_record['name']} Team Info")
-        embed.set_thumbnail(url=QUESTION_MARK if team_record["logourl"] is None else team_record["logourl"])
+        embed.set_thumbnail(url=team_record["logourl"] or QUESTION_MARK)
         embed.add_field(name="Team ID", value=team_id, inline=False)
         embed.add_field(name="City", value=team_record["city"])
         embed.add_field(name="Name", value=team_record["name"], inline=True)
@@ -424,10 +420,10 @@ class PlayerManagement(commands.Cog, name="Player Management"):
             return await ctx.reply("Error: Player has left the server. Application automatically deleted from database.")
         await player_member.send("Your application has been approved by a member of the Commissioners' Office.\nYou are now free to sign with a team.")
         await player_member.add_roles(nextcord.utils.get(ctx.guild.roles, name=player["playerposition"].title()))
-        await self.bot.webhook_template_tweet("media",
-                                              f"{player['playerposition'].lower()}_joined{'_'+player['playertype'].lower() if player['playertype'] else ''}",
-                                              user=player_member.mention,
-                                              last_name=player["lastname"])
+        # await self.bot.webhook_template_tweet("media",
+        #                                       f"{player['playerposition'].lower()}_joined{'_'+player['playertype'].lower() if player['playertype'] else ''}",
+        #                                       user=player_member.mention,
+        #                                       last_name=player["lastname"])
         await self.bot.write("""UPDATE players SET approved = 't' WHERE playerid = $1""", player_id)
         return await ctx.reply("Player successfully approved.")
 
@@ -539,6 +535,129 @@ class GameManagement(commands.Cog):
     def __init__(self, bot: Bot):
         self.bot = bot
 
+    @commands.command(name="creategame", aliases=["startgame"])
+    @commands.has_role("bot operator")
+    async def create_game(self, ctx, away_team: str, home_team: str, stadium=Optional[nextcord.TextChannel]):
+        """Creates a game. Starts by default in home team's stadium unless neutral site specified."""
+        away_team, home_team = away_team.upper(), home_team.upper()
+        if any((len(away_team) > 3, len(home_team) > 3)):
+            return await ctx.reply("Error: Team ID cannot be longer than 3 characters.")
+
+        if not (await self.bot.statements.team_exists(home_team) and await self.bot.statements.team_exists(away_team)):
+            return await ctx.reply("Error: Home and/or away team not found.")
+
+        stadium = stadium or await self.bot.db.fetchval("""SELECT channelid FROM teams WHERE teamid = $1""", home_team)
+        if stadium is None:
+            return await ctx.reply("Error: Home team has no stadium.")
+
+        if await self.bot.db.fetchval("""SELECT EXISTS(SELECT 1 FROM games WHERE stadium = $1 AND game_active)""", stadium):
+            return await ctx.reply("Error: Stadium is already in use!")
+
+        if await self.bot.db.fetchval("""SELECT EXISTS(
+                                         SELECT 1 FROM games
+                                         WHERE game_active AND
+                                         (hometeam = $1 OR awayteam = $1 OR hometeam = $2 or awayteam = $2))""", home_team, away_team):
+            return await ctx.reply("Error: One or both of the teams are in an existing match!")
+
+        # This is the best way to do it for now. One day I'll improve this by implementing a postgres statement for it.
+        home_forward_id, home_forward_type = await self.bot.db.fetchrow("""SELECT playerid, playertype FROM players WHERE playerteam = $1 AND playerposition = 'FORWARD'""", home_team) or (None, None)
+        home_defenseman_id, home_defenseman_type = await self.bot.db.fetchrow("""SELECT playerid, playertype FROM players WHERE playerteam = $1 AND playerposition = 'DEFENSEMAN'""", home_team) or (None, None)
+        home_goalie_id = await self.bot.db.fetchval("""SELECT playerid from players WHERE playerteam = $1 AND playerposition = 'GOALIE'""", home_team)
+        away_forward_id, away_forward_type = await self.bot.db.fetchrow("""SELECT playerid, playertype FROM players WHERE playerteam = $1 AND playerposition = 'FORWARD'""", away_team) or (None, None)
+        away_defenseman_id, away_defenseman_type = await self.bot.db.fetchrow("""SELECT playerid, playertype FROM players WHERE playerteam = $1 AND playerposition = 'DEFENSEMAN'""", away_team) or (None, None)
+        away_goalie_id = await self.bot.db.fetchval("""SELECT playerid from players WHERE playerteam = $1 AND playerposition = 'GOALIE'""", away_team)
+
+        if not all({home_forward_id, home_defenseman_id, home_goalie_id, away_forward_id, away_defenseman_id, away_goalie_id}):
+            return await ctx.reply("Error: One or more of the teams has one or more unfilled positions. Game cannot begin.")
+
+        await self.bot.write("""INSERT INTO games
+                                (hometeam, awayteam, homeroster, awayroster, stadium) VALUES
+                                (   $1,       $2,
+                                 (($3, $4), ($5, $6) , $7), (($8, $9), ($10, $11), $12), $13)""",
+                             home_team, away_team, home_forward_id, home_forward_type, home_defenseman_id,
+                             home_defenseman_type, home_goalie_id, away_forward_id, away_forward_type,
+                             away_defenseman_id, away_defenseman_type, away_goalie_id, stadium)
+        deadline = await self.bot.db.fetchval("""SELECT deadline FROM games WHERE stadium = $1 AND game_active""", stadium)
+
+        stadium = self.bot.get_channel(stadium)
+        home_role, away_role = await self.bot.role_from_id(stadium.guild.id, home_team), await self.bot.role_from_id(stadium.guild.id, away_team)
+        home_goalie, away_goalie = self.bot.get_user(home_goalie_id), self.bot.get_user(away_goalie_id)
+        await stadium.send(f"Game has started between {home_role.mention} and {away_role.mention}.\n\n"
+                           f"{home_goalie.mention} and {away_goalie.mention}, please DM your lists.")
+        active_category = nextcord.utils.get(ctx.guild.categories, name="Active Stadiums")
+        await home_goalie.send("Please DM a list of numbers from 1-1000 separated by commas.")
+        await away_goalie.send("Please DM a list of numbers from 1-1000 separated by commas.")
+        await ctx.reply(f"Success: Game started in {stadium.mention}.")
+        return await stadium.edit(topic=f"{away_role.mention} 0 - 0 {home_role.mention} (0 CP | 25 moves left | 1st | Deadline: <t:{int(mktime(deadline.timetuple()))}:f>)", category=active_category)
+
+    @commands.command(name="abandongame", aliases=["stopgame"])
+    @commands.has_role("bot operator")
+    async def abandon_game(self, ctx, game_id: Optional[int] = None):
+        game_id = game_id or ctx.channel.id
+        game = await self.bot.db.fetchrow("""SELECT hometeam, awayteam, homescore, awayscore, gameid, stadium FROM games WHERE gameid = $1 AND game_active""", game_id)
+        if game is None:
+            return await ctx.reply("Error: Game not found.")
+        scores_channel = nextcord.utils.get(ctx.guild.channels, name="scores")
+        await scores_channel.send(f"{self.bot.emoji_from_id(ctx.guild.id, game['awayteam'])} {game['awayscore']} - "
+                                  f"{game['homescore']} {self.bot.emoji_from_id(ctx.guild.id, game['hometeam'])} "
+                                  f"(GAME ABANDONED)")
+        await self.bot.write("""UPDATE games SET game_active = 'f' WHERE gameid = $1""", game['gameid'])
+        stadium = self.bot.get_channel(game["stadium"])
+        vacant_category = nextcord.utils.get(ctx.guild.categories, name="Vacant Stadiums")
+        if stadium != ctx.channel:
+            await stadium.send("Game has been abandoned by a bot operator.")
+        await ctx.reply("Game successfuly abandoned.")
+        return await stadium.edit(topic="", category=vacant_category)
+
+    @commands.command(name="gameinfo")
+    async def game_info(self, ctx, game_id: Optional[int] = None):
+        game_id = game_id or ctx.channel.id
+        game = await self.bot.db.fetchrow("""SELECT hometeam, awayteam, homescore, awayscore, homeroster,
+                                             awayroster, movenum, stadium, cleanpasses, waitingon_side, possession,
+                                             waitingon_pos, game_active, gameid, deadline FROM games WHERE gameid = $1""",
+                                          game_id)
+        if game is None:
+            return await ctx.reply("Error: Game not found.")
+        period, moves_left = (game["movenum"] // 25) + 1, 25 - (game['movenum'] % 25)
+        embed = nextcord.Embed(color=0xCC5500, title="Game Info", timestamp=datetime.now())
+        embed.add_field(name="Home Team", value=(await self.bot.role_from_id(ctx.guild.id, game["hometeam"])).mention)
+        embed.add_field(name="Away Team", value=(await self.bot.role_from_id(ctx.guild.id, game["awayteam"])).mention)
+        embed.add_field(name="Stadium", value=self.bot.get_channel(game["stadium"]).mention)
+        embed.add_field(name="Score", value=f"{game['awayteam']} {game['awayscore']} - {game['homescore']} {game['hometeam']}")
+        embed.add_field(name="Period", value=["x", "1st", "2nd", "3rd"][period])
+        embed.add_field(name="Moves Left", value=moves_left)
+        embed.add_field(name="Possession", value=(await self.bot.role_from_id(ctx.guild.id, game[f"{game['possession'].lower()}team"])).mention)
+        embed.add_field(name="Clean Passes", value=game["cleanpasses"])
+        embed.add_field(name="Game Active?", value="Yes" if game["game_active"] else "No")
+        embed.add_field(name="Home Forward", value=self.bot.get_user(game["homeroster"]["forward"]["playerid"]).mention)
+        embed.add_field(name="Home Defenseman", value=self.bot.get_user(game["homeroster"]["defenseman"]["playerid"]).mention)
+        embed.add_field(name="Home Goalie", value=self.bot.get_user(game["homeroster"]["goalie"]).mention)
+        embed.add_field(name="Away Forward", value=self.bot.get_user(game["awayroster"]["forward"]["playerid"]).mention)
+        embed.add_field(name="Away Defenseman", value=self.bot.get_user(game["awayroster"]["defenseman"]["playerid"]).mention)
+        embed.add_field(name="Away Goalie", value=self.bot.get_user(game["awayroster"]["goalie"]).mention)
+        embed.add_field(name="Waiting on number from team", value=(await self.bot.role_from_id(ctx.guild.id, game[f"{game['waitingon_side'].lower()}team"])).mention)
+        embed.add_field(name="Waiting on number from position", value=game["waitingon_pos"].title())
+        embed.add_field(name="Deadline", value=f"<t:{int(mktime(game['deadline'].timetuple()))}:f>")
+        embed.set_footer(text=f"Game ID: {game['gameid']}")
+        return await ctx.reply(embed=embed)
+
+    @commands.command(name="listgames", aliases=["listactivegames"])
+    async def list_games(self, ctx):
+        games = await self.bot.db.fetch("""SELECT hometeam, awayteam, homescore, awayscore, gameid, movenum FROM games WHERE game_active""")
+        if len(games) == 0:
+            return await ctx.reply("There are no active games.")
+        message_str = "```\nACTIVE GAMES:\n"
+        for game in games:
+            period, moves_left = (game["movenum"] // 25) + 1, 25 - (game['movenum'] % 25)
+            message_str += f"{game['awayteam']} {game['awayscore']} - {game['homescore']} {game['hometeam']} " \
+                           f"({['x', '1st', '2nd', '3rd'][period]} | {moves_left} moves left | ID: {game['gameid']})\n"
+        message_str += "```"
+        return await ctx.reply(message_str)
+
+    @commands.command()
+    async def rulebook(self, ctx):
+        return await ctx.reply("https://docs.google.com/document/d/1iwjePj_75XspX1sGH5PndSelOhV5X0NcoskAneEFe-c/edit?usp=sharing")
+
 
 class MetaAdmin(commands.Cog):
     """Commands related to the functioning of the bot."""
@@ -552,6 +671,11 @@ class MetaAdmin(commands.Cog):
         result = eval(arg)
         if inspect.isawaitable(result):
             result = await result
+        if result is None:
+            return await ctx.reply("✅")
+        if isinstance(result, str):
+            result.replace("\"", "\\\"")
+            result = f'"{result}"'
         embed = nextcord.Embed(color=0, title="Eval", description=f"```py\n{result}\n```")
         await ctx.reply(embed=embed)
 
@@ -563,7 +687,7 @@ class MetaAdmin(commands.Cog):
 
     @commands.command(hidden=True)
     @commands.is_owner()
-    async def test(self, ctx, arg: str):
+    async def test(self, ctx, arg: Optional[str] = None):
         """A command used to test features. Usually does nothing."""
         pass
 
